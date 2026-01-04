@@ -3,6 +3,7 @@ package com.nexus.client.controller;
 import com.nexus.client.NexusLauncherApp;
 import com.nexus.client.service.GameLauncher;
 import com.nexus.client.service.GameService;
+import com.nexus.client.util.PlaceholderImageUtil;
 import com.nexus.shared.model.Game;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -57,7 +58,9 @@ public class GameDetailsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Initialization done when game is set
+        // Bind hero background to fill the root pane
+        heroBackground.fitWidthProperty().bind(rootPane.widthProperty());
+        heroBackground.fitHeightProperty().bind(rootPane.heightProperty());
     }
 
     public void setMainController(MainController mainController) {
@@ -131,8 +134,23 @@ public class GameDetailsController implements Initializable {
                 Image image = new Image(heroUrl, 1280, 720, false, true, true);
                 heroBackground.setImage(image);
             } catch (Exception e) {
-                // Keep default background
+                // Load placeholder hero image
+                loadPlaceholderHeroImage();
             }
+        } else {
+            // Load placeholder hero image
+            loadPlaceholderHeroImage();
+        }
+    }
+
+    private void loadPlaceholderHeroImage() {
+        String gameTitle = currentGame.getTitle() != null ? currentGame.getTitle() : "Game";
+        String placeholderUrl = PlaceholderImageUtil.getHeroPlaceholder(gameTitle, 1280, 720);
+        try {
+            Image image = new Image(placeholderUrl, 1280, 720, false, true, true);
+            heroBackground.setImage(image);
+        } catch (Exception e) {
+            // Keep default background
         }
     }
 
@@ -140,10 +158,50 @@ public class GameDetailsController implements Initializable {
         if (currentGame.getCoverImageUrl() != null && !currentGame.getCoverImageUrl().isEmpty()) {
             try {
                 Image image = new Image(currentGame.getCoverImageUrl(), 240, 320, false, true, true);
-                coverImage.setImage(image);
+                image.errorProperty().addListener((obs, wasError, isError) -> {
+                    if (isError) {
+                        loadPlaceholderCoverImage();
+                    }
+                });
+                image.progressProperty().addListener((obs, oldProgress, newProgress) -> {
+                    if (newProgress.doubleValue() >= 1.0 && !image.isError()) {
+                        coverImage.setImage(image);
+                    }
+                });
+                if (image.getProgress() >= 1.0 && !image.isError()) {
+                    coverImage.setImage(image);
+                } else if (image.isError()) {
+                    loadPlaceholderCoverImage();
+                }
             } catch (Exception e) {
-                // Keep default
+                loadPlaceholderCoverImage();
             }
+        } else {
+            loadPlaceholderCoverImage();
+        }
+    }
+
+    private void loadPlaceholderCoverImage() {
+        String gameTitle = currentGame.getTitle() != null ? currentGame.getTitle() : "Game";
+        String placeholderUrl = PlaceholderImageUtil.getCoverPlaceholder(gameTitle, 480, 640);
+        try {
+            Image image = new Image(placeholderUrl, 240, 320, false, true, true);
+            image.errorProperty().addListener((obs, wasError, isError) -> {
+                if (isError) {
+                    // Set a fallback background color on the cover container
+                    coverImage.setStyle("-fx-background-color: linear-gradient(to bottom, #4f46e5, #1f2937);");
+                }
+            });
+            image.progressProperty().addListener((obs, oldProgress, newProgress) -> {
+                if (newProgress.doubleValue() >= 1.0 && !image.isError()) {
+                    coverImage.setImage(image);
+                }
+            });
+            if (image.getProgress() >= 1.0 && !image.isError()) {
+                coverImage.setImage(image);
+            }
+        } catch (Exception e) {
+            // Keep default if placeholder fails
         }
     }
 

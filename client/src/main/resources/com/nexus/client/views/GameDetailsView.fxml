@@ -15,8 +15,6 @@
 
     <!-- Hero Background Image (Blurred) -->
     <ImageView fx:id="heroBackground"
-               fitWidth="1280"
-               fitHeight="720"
                preserveRatio="false"
                styleClass="hero-background">
         <effect>

@@ -17,7 +17,8 @@ public class GameService {
 
     private GameService() {
         this.gameRepository = new GameRepository();
-        this.metadataService = new PlaceholderMetadataService();
+        // Use dynamic API-based metadata service
+        this.metadataService = new CombinedMetadataService();
     }
 
     public static synchronized GameService getInstance() {

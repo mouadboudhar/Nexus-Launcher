@@ -1,5 +1,6 @@
 package com.nexus.client.component;
 
+import com.nexus.client.util.PlaceholderImageUtil;
 import com.nexus.shared.model.Game;
 import javafx.animation.FadeTransition;
 import javafx.animation.ScaleTransition;
@@ -101,8 +102,54 @@ public class GameCard extends StackPane {
     }
 
     private void setPlaceholderImage() {
-        // Create a gradient placeholder with game initial
+        // Use placehold.co API for placeholder images with game title
+        String gameTitle = game.getTitle() != null ? game.getTitle() : "Game";
+        int width = (int) (CARD_WIDTH * 2);
+        int height = (int) (CARD_HEIGHT * 2);
+        String placeholderUrl = PlaceholderImageUtil.getCoverPlaceholder(gameTitle, width, height);
+
+        try {
+            Image placeholderImage = new Image(placeholderUrl, CARD_WIDTH * 2, CARD_HEIGHT * 2, true, true, true);
+            placeholderImage.errorProperty().addListener((obs, wasError, isError) -> {
+                if (isError) {
+                    // Fallback to styled background with game title
+                    showLocalPlaceholder(gameTitle);
+                }
+            });
+
+            // Also check progress - when loaded, set it
+            placeholderImage.progressProperty().addListener((obs, oldProgress, newProgress) -> {
+                if (newProgress.doubleValue() >= 1.0 && !placeholderImage.isError()) {
+                    coverImage.setImage(placeholderImage);
+                }
+            });
+
+            if (placeholderImage.getProgress() >= 1.0 && !placeholderImage.isError()) {
+                coverImage.setImage(placeholderImage);
+            } else if (placeholderImage.isError()) {
+                showLocalPlaceholder(gameTitle);
+            }
+        } catch (Exception e) {
+            // Fallback to styled background
+            showLocalPlaceholder(gameTitle);
+        }
+    }
+
+    private void showLocalPlaceholder(String gameTitle) {
+        // Set gradient background
         setStyle("-fx-background-color: linear-gradient(to bottom, #4f46e5, #1f2937);");
+
+        // Add a label with the game title if not already present
+        boolean hasLabel = getChildren().stream().anyMatch(n -> n instanceof Label && "placeholder-title".equals(n.getId()));
+        if (!hasLabel) {
+            Label titleLabel = new Label(gameTitle);
+            titleLabel.setId("placeholder-title");
+            titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-wrap-text: true; -fx-text-alignment: center; -fx-padding: 16;");
+            titleLabel.setMaxWidth(CARD_WIDTH - 20);
+            titleLabel.setWrapText(true);
+            StackPane.setAlignment(titleLabel, Pos.CENTER);
+            getChildren().add(1, titleLabel); // Add after coverImage but before other overlays
+        }
     }
 
     private void createGradientOverlay() {

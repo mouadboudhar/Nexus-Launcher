@@ -39,6 +39,9 @@ public class LibraryController implements Initializable {
     @FXML private Button addGameButton;
     @FXML private Label gameCountLabel;
     @FXML private FlowPane gamesGrid;
+    @FXML private VBox loadingOverlay;
+    @FXML private ProgressIndicator loadingIndicator;
+    @FXML private Label loadingLabel;
 
     private MainController mainController;
     private final GameService gameService = GameService.getInstance();
@@ -108,12 +111,14 @@ public class LibraryController implements Initializable {
 
         // Show loading state
         Platform.runLater(() -> {
+            showLoading(true, "Scanning for games...");
             gameCountLabel.setText("SCANNING...");
         });
 
         currentScanTask.setOnSucceeded(e -> {
             List<Game> games = currentScanTask.getValue();
             Platform.runLater(() -> {
+                showLoading(false, null);
                 displayGames(games);
                 updateGameCount(games.size());
                 isScanning = false;
@@ -125,6 +130,7 @@ public class LibraryController implements Initializable {
 
         currentScanTask.setOnFailed(e -> {
             Platform.runLater(() -> {
+                showLoading(false, null);
                 isScanning = false;
                 loadGamesFromDatabase(); // Fall back to database
                 System.err.println("[LibraryController] Scan failed: " + currentScanTask.getException());
@@ -138,6 +144,19 @@ public class LibraryController implements Initializable {
 
     public void setMainController(MainController mainController) {
         this.mainController = mainController;
+    }
+
+    /**
+     * Shows or hides the loading overlay.
+     */
+    private void showLoading(boolean show, String message) {
+        if (loadingOverlay != null) {
+            loadingOverlay.setVisible(show);
+            loadingOverlay.setManaged(show);
+            if (message != null && loadingLabel != null) {
+                loadingLabel.setText(message);
+            }
+        }
     }
 
     private void setupSearchListener() {

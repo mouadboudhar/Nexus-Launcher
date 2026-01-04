@@ -1,0 +1,26 @@
+# Nexus Launcher Configuration
+# ================================
+
+# IGDB API Credentials (Optional - for enhanced non-Steam game metadata)
+#
+# To get IGDB credentials:
+# 1. Go to https://dev.twitch.tv/console/apps
+# 2. Log in with your Twitch account (create one if needed)
+# 3. Click "Register Your Application"
+# 4. Fill in:
+#    - Name: Nexus Launcher (or any name)
+#    - OAuth Redirect URLs: http://localhost
+#    - Category: Application Integration
+# 5. Click "Create"
+# 6. Copy the Client ID below
+# 7. Click "New Secret" and copy the Client Secret below
+#
+# igdb.client.id=YOUR_CLIENT_ID_HERE
+# igdb.client.secret=YOUR_CLIENT_SECRET_HERE
+
+# Note: Without IGDB credentials, the app will:
+# - Use Steam API for all Steam games (works perfectly, no key needed)
+# - Search Steam for non-Steam games (often finds matches)
+# - Fall back to hardcoded metadata for popular games
+# - Show "No description available" for unrecognized games
+

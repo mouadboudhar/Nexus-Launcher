@@ -19,24 +19,30 @@ NexusLauncher/
 │       │   │   ├── ScanController.java
 │       │   │   ├── FavoritesController.java
 │       │   │   ├── SettingsController.java
-│       │   │   └── AddGameDialogController.java
+│       │   │   ├── AddGameDialogController.java
+│       │   │   └── EditGameDialogController.java
 │       │   └── service/
-│       │       └── MockDataService.java
+│       │       ├── CombinedMetadataService.java  # Dynamic API metadata
+│       │       ├── GameLauncher.java             # Game execution
+│       │       ├── GameService.java              # Business logic
+│       │       ├── MetadataService.java          # Interface
+│       │       ├── PlaceholderMetadataService.java # Fallback metadata
+│       │       ├── ScannerService.java           # Game detection
+│       │       └── ScanTask.java                 # Background scanning
 │       └── resources/com/nexus/client/
 │           ├── views/                   # FXML layout files
-│           │   ├── MainView.fxml
-│           │   ├── LibraryView.fxml
-│           │   ├── GameDetailsView.fxml
-│           │   ├── ScanView.fxml
-│           │   ├── FavoritesView.fxml
-│           │   ├── SettingsView.fxml
-│           │   └── AddGameDialog.fxml
 │           └── styles/
 │               └── application.css      # Dark theme stylesheet
-├── server/                    # Backend server (not implemented)
-├── shared/                    # Shared models
-│   └── src/main/java/com/nexus/shared/model/
-│       └── Game.java
+├── shared/                    # Shared models & repositories
+│   └── src/main/java/com/nexus/shared/
+│       ├── model/
+│       │   ├── Game.java
+│       │   └── AppSettings.java
+│       ├── repository/
+│       │   ├── GameRepository.java
+│       │   └── SettingsRepository.java
+│       └── util/
+│           └── HibernateUtil.java
 └── pom.xml                    # Parent Maven POM
 ```
 
@@ -88,31 +94,33 @@ mvn javafx:run
 - Custom scrollbars, buttons, and form elements
 - Hover effects and animations on game cards
 
-## Mock Data
+## Game Metadata
 
-The application comes pre-loaded with 12 sample games for testing:
-- Hollow Knight (Steam)
-- Fortnite (Epic)
-- Minecraft (Manual - Missing status)
-- Factorio (Steam)
-- Valheim (Steam - Favorited)
-- Celeste (Steam - Favorited)
-- Hades (Steam)
-- The Witcher 3 (Steam - Favorited)
-- Elden Ring (Steam)
-- Stardew Valley (Steam)
-- Rocket League (Epic)
-- Fall Guys (Epic)
+The application automatically fetches game metadata (covers, descriptions, developers) from:
 
-## Next Steps (Backend Implementation)
+### Steam API (No key required)
+- Works for all Steam games using their App ID
+- Also searches Steam for non-Steam games that might have a Steam page
+- Provides cover images, hero images, descriptions, developers, and release dates
 
-The following features need backend implementation:
-- [ ] Database integration for game storage
-- [ ] File system scanning for Steam/Epic libraries
-- [ ] IGDB/Steam API integration for game metadata
-- [ ] Actual game launching functionality
-- [ ] User preferences persistence
+### IGDB API (Optional - requires free Twitch API key)
+- For games not found on Steam
+- To enable:
+  1. Go to https://dev.twitch.tv/console/apps
+  2. Create an application (free)
+  3. Copy `nexus.properties.example` to `nexus.properties`
+  4. Add your Client ID and Client Secret
+
+### Fallback
+- Hardcoded metadata for 100+ popular games
+- Ensures common games always have covers
+
+## Next Steps (Future Features)
+
 - [ ] System tray integration
+- [ ] Game time tracking
+- [ ] Cloud sync for favorites/settings
+- [ ] More platform support (GOG, Xbox Game Pass)
 
 ## License
 

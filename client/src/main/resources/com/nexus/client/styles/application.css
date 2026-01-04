@@ -43,6 +43,8 @@
     -fx-background-radius: 12 12 0 0;
     -fx-border-color: #374151;     /* Lighter Gray Border */
     -fx-border-width: 0 0 1 0;     /* Bottom border only */
+    -fx-min-height: 32px;
+    -fx-pref-height: 32px;
 }
 
 /* Window Control Buttons (Red/Yellow/Green circles) */
@@ -387,8 +389,8 @@
 
 /* Play Button on Card */
 .play-button {
-    -fx-background-color: white;
-    -fx-text-fill: #111827;
+    -fx-background-color: #4f46e5;
+    -fx-text-fill: white;
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-padding: 10 24;
@@ -397,8 +399,12 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 4);
 }
 
+.play-button .label {
+    -fx-text-fill: white;
+}
+
 .play-button:hover {
-    -fx-background-color: #eef2ff;
+    -fx-background-color: #6366f1;
 }
 
 .locate-button {
@@ -409,9 +415,38 @@
     -fx-text-fill: #f87171;
 }
 
+.locate-button .label {
+    -fx-text-fill: #f87171;
+}
+
 .locate-button:hover {
     -fx-background-color: #f87171;
     -fx-text-fill: white;
+}
+
+.locate-button:hover .label {
+    -fx-text-fill: white;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    -fx-background-color: rgba(17, 24, 39, 0.9);
+}
+
+.loading-indicator {
+    -fx-progress-color: #4f46e5;
+    -fx-min-width: 64px;
+    -fx-min-height: 64px;
+}
+
+.loading-indicator .arc {
+    -fx-stroke: #4f46e5;
+}
+
+.loading-text {
+    -fx-text-fill: #9ca3af;
+    -fx-font-size: 16px;
+    -fx-font-weight: 500;
 }
 
 /* Add Game Placeholder Card */

@@ -11,10 +11,12 @@ module com.nexus.client {
     opens com.nexus.client.controller to javafx.fxml;
     opens com.nexus.client.component to javafx.fxml;
     opens com.nexus.client.service to javafx.fxml;
+    opens com.nexus.client.util to javafx.fxml;
 
     exports com.nexus.client;
     exports com.nexus.client.controller;
     exports com.nexus.client.component;
     exports com.nexus.client.service;
+    exports com.nexus.client.util;
 }
 

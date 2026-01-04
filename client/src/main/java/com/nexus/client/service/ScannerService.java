@@ -11,7 +11,6 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * Service responsible for scanning installed games from Steam, Epic Games, and System.
@@ -21,15 +20,6 @@ public class ScannerService {
 
     private final GameRepository gameRepository;
     private final MetadataService metadataService;
-
-    // Known game folders to scan for system games
-    private static final List<String> KNOWN_GAME_PATHS = Arrays.asList(
-            System.getenv("APPDATA") + "\\.minecraft",
-            System.getenv("LOCALAPPDATA") + "\\Riot Games",
-            System.getenv("ProgramFiles") + "\\Riot Games",
-            System.getenv("ProgramFiles(x86)") + "\\Riot Games",
-            "C:\\Riot Games"
-    );
 
     // Games to look for in the registry (displayName -> executable pattern)
     // ONLY actual games, NOT launchers or tools
@@ -79,7 +69,8 @@ public class ScannerService {
 
     public ScannerService() {
         this.gameRepository = new GameRepository();
-        this.metadataService = new PlaceholderMetadataService();
+        // Use dynamic API-based metadata service
+        this.metadataService = new CombinedMetadataService();
     }
 
     public ScannerService(GameRepository gameRepository, MetadataService metadataService) {
@@ -185,7 +176,6 @@ public class ScannerService {
     public List<Game> scanSteam() {
         // Use LinkedHashMap keyed by appId to deduplicate at scanning level
         Map<String, Game> gamesByAppId = new LinkedHashMap<>();
-        Set<String> seenNormalizedTitles = new HashSet<>();
         String steamPath = getSteamPath();
 
         if (steamPath == null || steamPath.isEmpty()) {
@@ -199,8 +189,6 @@ public class ScannerService {
         List<String> libraryPaths = getSteamLibraryPaths(steamPath);
         System.out.println("[ScannerService] Found " + libraryPaths.size() + " Steam library paths");
 
-        // First pass: collect ALL acf files from ALL libraries
-        List<Path> allAcfFiles = new ArrayList<>();
         for (String libraryPath : libraryPaths) {
             Path steamappsPath = Paths.get(libraryPath, "steamapps");
             if (!Files.exists(steamappsPath)) {
@@ -643,9 +631,9 @@ public class ScannerService {
         if (installLocation != null && !installLocation.isEmpty()) {
             Path installPath = Paths.get(installLocation);
             if (Files.exists(installPath)) {
-                try {
+                try (var stream = Files.walk(installPath, 2)) {
                     // Find exe matching pattern
-                    Optional<Path> exe = Files.walk(installPath, 2)
+                    Optional<Path> exe = stream
                             .filter(p -> p.toString().toLowerCase().endsWith(".exe"))
                             .filter(p -> p.getFileName().toString().toLowerCase().contains(exePattern.toLowerCase()))
                             .findFirst();
@@ -696,60 +684,116 @@ public class ScannerService {
             foundGames.add("minecraft");
         }
 
-        // Check Riot Games
+        // Check Riot Games - expanded paths
         String[] riotPaths = {
                 "C:\\Riot Games",
+                "D:\\Riot Games",
+                "E:\\Riot Games",
                 System.getenv("ProgramFiles") + "\\Riot Games",
-                System.getenv("ProgramFiles(x86)") + "\\Riot Games"
+                System.getenv("ProgramFiles(x86)") + "\\Riot Games",
+                System.getenv("LOCALAPPDATA") + "\\Riot Games"
         };
 
         for (String riotPath : riotPaths) {
-            if (Files.exists(Paths.get(riotPath))) {
-                // League of Legends
+            if (riotPath == null || !Files.exists(Paths.get(riotPath))) {
+                continue;
+            }
+
+            // League of Legends - check multiple possible locations
+            if (!foundGames.contains("league of legends")) {
                 Path lolPath = Paths.get(riotPath, "League of Legends");
-                if (Files.exists(lolPath) && !foundGames.contains("league of legends")) {
-                    Game lol = createRiotGame("League of Legends", lolPath.toString(), "LeagueClient.exe");
+                if (Files.exists(lolPath)) {
+                    Game lol = createRiotGame("League of Legends", lolPath.toString(),
+                            new String[]{"LeagueClient.exe", "League of Legends.exe", "LeagueClientUx.exe"});
                     if (lol != null) {
                         games.add(lol);
                         foundGames.add("league of legends");
+                        System.out.println("[ScannerService] Found League of Legends at: " + lolPath);
                     }
                 }
+            }
 
-                // VALORANT
+            // VALORANT
+            if (!foundGames.contains("valorant")) {
                 Path valorantPath = Paths.get(riotPath, "VALORANT");
-                if (Files.exists(valorantPath) && !foundGames.contains("valorant")) {
-                    Game valorant = createRiotGame("VALORANT", valorantPath.toString(), "VALORANT.exe");
+                if (!Files.exists(valorantPath)) {
+                    valorantPath = Paths.get(riotPath, "Valorant"); // Try alternate casing
+                }
+                if (Files.exists(valorantPath)) {
+                    Game valorant = createRiotGame("VALORANT", valorantPath.toString(),
+                            new String[]{"VALORANT.exe", "ShooterGame.exe", "Valorant.exe"});
                     if (valorant != null) {
                         games.add(valorant);
                         foundGames.add("valorant");
+                        System.out.println("[ScannerService] Found VALORANT at: " + valorantPath);
+                    }
+                }
+            }
+
+            // Legends of Runeterra
+            if (!foundGames.contains("legends of runeterra")) {
+                Path lorPath = Paths.get(riotPath, "LoR");
+                if (Files.exists(lorPath)) {
+                    Game lor = createRiotGame("Legends of Runeterra", lorPath.toString(),
+                            new String[]{"LoR.exe", "Legends of Runeterra.exe"});
+                    if (lor != null) {
+                        games.add(lor);
+                        foundGames.add("legends of runeterra");
                     }
                 }
             }
         }
 
+        // Also check for Riot Client installation via registry
+        games.addAll(scanRiotClientRegistry(foundGames));
+
         return games;
     }
 
     /**
-     * Creates a Riot game entry.
+     * Creates a Riot game entry with multiple possible executable names.
      */
-    private Game createRiotGame(String title, String installPath, String exeName) {
+    private Game createRiotGame(String title, String installPath, String[] exeNames) {
         Game game = new Game();
         game.setTitle(title);
         game.setPlatform(Platform.SYSTEM);
         game.setUniqueId(Game.generateUniqueId(Platform.SYSTEM, title));
         game.setInstallPath(installPath);
 
-        // Find executable
+        // Find executable - try each possible name
         try {
-            Optional<Path> exe = Files.walk(Paths.get(installPath), 3)
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(exeName))
-                    .findFirst();
-            if (exe.isPresent()) {
-                game.setExecutablePath(exe.get().toString());
+            Path foundExe = null;
+            for (String exeName : exeNames) {
+                try (var stream = Files.walk(Paths.get(installPath), 4)) {
+                    Optional<Path> exe = stream
+                            .filter(p -> p.getFileName().toString().equalsIgnoreCase(exeName))
+                            .findFirst();
+                    if (exe.isPresent()) {
+                        foundExe = exe.get();
+                        break;
+                    }
+                }
+            }
+
+            if (foundExe != null) {
+                game.setExecutablePath(foundExe.toString());
                 game.setStatus(Status.READY);
             } else {
-                game.setStatus(Status.MISSING);
+                // If no specific exe found, look for any exe in Game folder
+                try (var stream = Files.walk(Paths.get(installPath), 4)) {
+                    Optional<Path> anyExe = stream
+                            .filter(p -> p.toString().toLowerCase().endsWith(".exe"))
+                            .filter(p -> !p.toString().toLowerCase().contains("unins"))
+                            .filter(p -> !p.toString().toLowerCase().contains("crash"))
+                            .filter(p -> !p.toString().toLowerCase().contains("update"))
+                            .findFirst();
+                    if (anyExe.isPresent()) {
+                        game.setExecutablePath(anyExe.get().toString());
+                        game.setStatus(Status.READY);
+                    } else {
+                        game.setStatus(Status.MISSING);
+                    }
+                }
             }
         } catch (IOException e) {
             game.setStatus(Status.MISSING);
@@ -757,6 +801,60 @@ public class ScannerService {
 
         metadataService.applyMetadata(game);
         return game;
+    }
+
+    /**
+     * Scans Windows Registry for Riot Client installations.
+     */
+    private List<Game> scanRiotClientRegistry(Set<String> foundGames) {
+        List<Game> games = new ArrayList<>();
+
+        try {
+            // Try to find Riot Client installation from registry
+            ProcessBuilder pb = new ProcessBuilder(
+                    "reg", "query", "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+                    "/s", "/f", "Riot"
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+
+                    // Look for InstallLocation containing game info
+                    if (line.contains("InstallLocation") && line.contains("REG_SZ")) {
+                        String path = extractRegistryValue(line);
+                        if (path != null && !path.isEmpty()) {
+                            // Check what game this is
+                            String pathLower = path.toLowerCase();
+                            if (pathLower.contains("league") && !foundGames.contains("league of legends")) {
+                                Game lol = createRiotGame("League of Legends", path,
+                                        new String[]{"LeagueClient.exe", "League of Legends.exe"});
+                                if (lol != null && lol.getStatus() == Status.READY) {
+                                    games.add(lol);
+                                    foundGames.add("league of legends");
+                                }
+                            } else if (pathLower.contains("valorant") && !foundGames.contains("valorant")) {
+                                Game valorant = createRiotGame("VALORANT", path,
+                                        new String[]{"VALORANT.exe", "ShooterGame.exe"});
+                                if (valorant != null && valorant.getStatus() == Status.READY) {
+                                    games.add(valorant);
+                                    foundGames.add("valorant");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            process.waitFor();
+        } catch (Exception e) {
+            // Silent fail for registry access
+        }
+
+        return games;
     }
 
     /**
