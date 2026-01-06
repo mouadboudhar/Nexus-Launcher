@@ -38,7 +38,6 @@ public class CombinedMetadataService implements MetadataService {
     private static final String STEAM_SEARCH = "https://store.steampowered.com/api/storesearch/?term=%s&cc=us&l=en";
     private static final String STEAM_COVER = "https://steamcdn-a.akamaihd.net/steam/apps/%s/library_600x900_2x.jpg";
     private static final String STEAM_HERO = "https://steamcdn-a.akamaihd.net/steam/apps/%s/library_hero.jpg";
-    private static final String STEAM_HEADER = "https://steamcdn-a.akamaihd.net/steam/apps/%s/header.jpg";
 
     // IGDB endpoints
     private static final String IGDB_GAMES = "https://api.igdb.com/v4/games";
@@ -239,12 +238,9 @@ public class CombinedMetadataService implements MetadataService {
      */
     private boolean parseIgdbGame(Game game, String json) {
         try {
-            // Find best matching game by name
-            Pattern namePattern = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"");
             Pattern summaryPattern = Pattern.compile("\"summary\"\\s*:\\s*\"([^\"]*(?:\\\\.[^\"]*)*)\"");
             Pattern coverPattern = Pattern.compile("\"cover\"\\s*:\\s*(\\d+)");
 
-            Matcher nameMatcher = namePattern.matcher(json);
             Matcher summaryMatcher = summaryPattern.matcher(json);
             Matcher coverMatcher = coverPattern.matcher(json);
 
