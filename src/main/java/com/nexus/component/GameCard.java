@@ -54,7 +54,7 @@ public class GameCard extends StackPane {
 
         // Create darkening effect for the cover image
         darkenEffect = new ColorAdjust();
-        darkenEffect.setBrightness(-0.2); // Darken by 30%
+        darkenEffect.setBrightness(-0.1); // Darken by 30%
 
         loadFXML();
         initialize();

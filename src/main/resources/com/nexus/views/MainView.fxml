@@ -38,15 +38,6 @@
                     </graphic>
                 </Button>
 
-                <Button fx:id="navScan"
-                        text="Scan Games"
-                        styleClass="nav-button"
-                        onAction="#onNavScan"
-                        maxWidth="Infinity">
-                    <graphic>
-                        <FontIcon iconLiteral="mdi2r-radar" iconSize="18" styleClass="nav-icon"/>
-                    </graphic>
-                </Button>
 
                 <Button fx:id="navFavorites"
                         text="Favorites"

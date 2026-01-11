@@ -4,7 +4,7 @@ import com.nexus.NexusLauncherApp;
 import com.nexus.component.GameCard;
 import com.nexus.service.GameLauncher;
 import com.nexus.service.GameService;
-import com.nexus.service.ScanTask;
+import com.nexus.service.ScannerService;
 import com.nexus.model.Game;
 import com.nexus.util.HibernateUtil;
 import javafx.application.Platform;
@@ -18,6 +18,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
@@ -38,17 +39,21 @@ public class LibraryController implements Initializable {
     @FXML private VBox rootContainer;
     @FXML private TextField searchField;
     @FXML private Button addGameButton;
+    @FXML private Button scanButton;
+    @FXML private FontIcon scanButtonIcon;
     @FXML private Label gameCountLabel;
     @FXML private FlowPane gamesGrid;
-    @FXML private VBox loadingOverlay;
-    @FXML private ProgressIndicator loadingIndicator;
-    @FXML private Label loadingLabel;
+
+    // Non-blocking scan status UI
+    @FXML private HBox scanStatusContainer;
+    @FXML private ProgressIndicator scanProgressIndicator;
+    @FXML private Label scanStatusLabel;
 
     private MainController mainController;
     private final GameService gameService = GameService.getInstance();
     private final GameLauncher gameLauncher = new GameLauncher();
 
-    private ScanTask currentScanTask;
+    private Task<?> currentScanTask;
     private boolean isScanning = false;
 
     @Override
@@ -56,12 +61,13 @@ public class LibraryController implements Initializable {
         // Setup search listener
         setupSearchListener();
 
-        // Initialize database in background, then load games
+        // Initialize database and load existing games IMMEDIATELY
         initializeDatabaseAndLoad();
     }
 
     /**
-     * Initializes the database and loads games after completion.
+     * Initializes the database and loads games instantly from DB.
+     * Background scan runs AFTER UI is ready and non-blocking.
      */
     private void initializeDatabaseAndLoad() {
         Task<Void> initTask = new Task<>() {
@@ -73,21 +79,20 @@ public class LibraryController implements Initializable {
         };
 
         initTask.setOnSucceeded(e -> {
-            // First load existing games from DB
+            // IMMEDIATELY load existing games from DB - user can interact right away
             loadGamesFromDatabase();
 
-            // Then trigger scan after a short delay to let UI settle
+            // Run background scan AFTER UI is loaded (non-blocking, incremental)
             Platform.runLater(() -> {
-                // Use a delayed scan to avoid race conditions
-                javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
-                delay.setOnFinished(event -> runInitialScan());
+                javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                        javafx.util.Duration.millis(1000));
+                delay.setOnFinished(event -> runBackgroundIncrementalScan());
                 delay.play();
             });
         });
 
         initTask.setOnFailed(e -> {
             System.err.println("[LibraryController] Database initialization failed: " + initTask.getException());
-            // Still try to show empty state
             Platform.runLater(() -> {
                 displayGames(new java.util.ArrayList<>());
                 updateGameCount(0);
@@ -100,47 +105,159 @@ public class LibraryController implements Initializable {
     }
 
     /**
-     * Runs the initial background scan on startup.
+     * Runs an incremental background scan that only looks for changes.
+     * This is NON-BLOCKING - the UI remains fully interactive.
      */
-    private void runInitialScan() {
+    private void runBackgroundIncrementalScan() {
         if (isScanning) {
             return;
         }
 
         isScanning = true;
-        currentScanTask = new ScanTask();
 
-        // Show loading state
+        // Update UI to show scanning state
         Platform.runLater(() -> {
-            showLoading(true, "Scanning for games...");
-            gameCountLabel.setText("SCANNING...");
+            showScanStatus(true, "Checking for new games...");
+            updateScanButtonState(true);
         });
 
-        currentScanTask.setOnSucceeded(e -> {
-            List<Game> games = currentScanTask.getValue();
+        Task<ScanResult> scanTask = new Task<>() {
+            @Override
+            protected ScanResult call() {
+                ScannerService scannerService = new ScannerService();
+
+                updateMessage("Scanning for changes...");
+
+                // Get current games from DB
+                List<Game> existingGames = gameService.getAllGames();
+                int existingCount = existingGames.size();
+
+                // Perform scan (this merges with DB internally)
+                List<Game> scannedGames = scannerService.scanAll();
+
+                int newGamesFound = scannedGames.size() - existingCount;
+
+                return new ScanResult(scannedGames, newGamesFound);
+            }
+        };
+
+        scanTask.messageProperty().addListener((obs, oldMsg, newMsg) ->
             Platform.runLater(() -> {
-                showLoading(false, null);
-                displayGames(games);
-                updateGameCount(games.size());
+                if (scanStatusLabel != null) {
+                    scanStatusLabel.setText(newMsg);
+                }
+            })
+        );
+
+        scanTask.setOnSucceeded(e -> {
+            ScanResult result = scanTask.getValue();
+            Platform.runLater(() -> {
+                showScanStatus(false, null);
+                updateScanButtonState(false);
+
+                // Always refresh display after manual scan
+                displayGames(result.games);
+                updateGameCount(result.games.size());
+
+                if (mainController != null) {
+                    if (result.newGamesFound > 0) {
+                        mainController.showToast("Scan Complete",
+                                "Found " + result.newGamesFound + " new game(s)");
+                    } else if (result.newGamesFound < 0) {
+                        mainController.showToast("Scan Complete",
+                                "Library updated (" + Math.abs(result.newGamesFound) + " game(s) removed)");
+                    } else {
+                        mainController.showToast("Scan Complete", "No changes found");
+                    }
+                }
+
+                isScanning = false;
+            });
+        });
+
+        scanTask.setOnFailed(e ->
+            Platform.runLater(() -> {
+                showScanStatus(false, null);
+                updateScanButtonState(false);
+                isScanning = false;
+                System.err.println("[LibraryController] Background scan failed: " + scanTask.getException());
+            })
+        );
+
+        scanTask.setOnCancelled(e ->
+            Platform.runLater(() -> {
+                showScanStatus(false, null);
+                updateScanButtonState(false);
                 isScanning = false;
                 if (mainController != null) {
-                    mainController.showToast("Scan Complete", "Found " + games.size() + " games");
+                    mainController.showToast("Scan Cancelled", "Scan was cancelled");
                 }
-            });
-        });
+            })
+        );
 
-        currentScanTask.setOnFailed(e -> {
-            Platform.runLater(() -> {
-                showLoading(false, null);
-                isScanning = false;
-                loadGamesFromDatabase(); // Fall back to database
-                System.err.println("[LibraryController] Scan failed: " + currentScanTask.getException());
-            });
-        });
-
-        Thread scanThread = new Thread(currentScanTask);
+        currentScanTask = scanTask;
+        Thread scanThread = new Thread(scanTask);
         scanThread.setDaemon(true);
         scanThread.start();
+    }
+
+    /**
+     * Handles scan button click - starts or cancels scan.
+     */
+    @FXML
+    private void onScanButtonClick() {
+        if (isScanning) {
+            cancelScan();
+        } else {
+            runBackgroundIncrementalScan();
+        }
+    }
+
+    /**
+     * Cancels the current scan operation.
+     */
+    private void cancelScan() {
+        if (currentScanTask != null && currentScanTask.isRunning()) {
+            currentScanTask.cancel();
+        }
+    }
+
+    /**
+     * Updates the scan button appearance based on scanning state.
+     */
+    private void updateScanButtonState(boolean scanning) {
+        if (scanButton != null) {
+            if (scanning) {
+                scanButton.setText("Cancel");
+                scanButton.getStyleClass().remove("secondary-button");
+                scanButton.getStyleClass().add("danger-button");
+                if (scanButtonIcon != null) {
+                    scanButtonIcon.setIconLiteral("fas-times");
+                }
+            } else {
+                scanButton.setText("Scan");
+                scanButton.getStyleClass().remove("danger-button");
+                if (!scanButton.getStyleClass().contains("secondary-button")) {
+                    scanButton.getStyleClass().add("secondary-button");
+                }
+                if (scanButtonIcon != null) {
+                    scanButtonIcon.setIconLiteral("fas-sync-alt");
+                }
+            }
+        }
+    }
+
+    /**
+     * Simple result class for scan operations.
+     */
+    private static class ScanResult {
+        final List<Game> games;
+        final int newGamesFound;
+
+        ScanResult(List<Game> games, int newGamesFound) {
+            this.games = games;
+            this.newGamesFound = newGamesFound;
+        }
     }
 
     public void setMainController(MainController mainController) {
@@ -148,15 +265,15 @@ public class LibraryController implements Initializable {
     }
 
     /**
-     * Shows or hides the loading overlay.
+     * Shows or hides the subtle scan status indicator.
      */
-    private void showLoading(boolean show, String message) {
-        if (loadingOverlay != null) {
-            loadingOverlay.setVisible(show);
-            loadingOverlay.setManaged(show);
-            if (message != null && loadingLabel != null) {
-                loadingLabel.setText(message);
-            }
+    private void showScanStatus(boolean show, String message) {
+        if (scanStatusContainer != null) {
+            scanStatusContainer.setVisible(show);
+            scanStatusContainer.setManaged(show);
+        }
+        if (message != null && scanStatusLabel != null) {
+            scanStatusLabel.setText(message);
         }
     }
 
@@ -167,7 +284,7 @@ public class LibraryController implements Initializable {
     }
 
     /**
-     * Loads games from the database.
+     * Loads games from the database (fast, instant).
      */
     private void loadGamesFromDatabase() {
         Task<List<Game>> loadTask = new Task<>() {
@@ -195,10 +312,10 @@ public class LibraryController implements Initializable {
     }
 
     /**
-     * Triggers a manual re-scan (called from Sync button).
+     * Triggers a manual re-scan (called from Sync button or Scan view).
      */
     public void triggerRescan() {
-        runInitialScan();
+        runBackgroundIncrementalScan();
     }
 
     public void refreshGames() {
@@ -250,7 +367,6 @@ public class LibraryController implements Initializable {
         VBox content = new VBox(8);
         content.setAlignment(javafx.geometry.Pos.CENTER);
 
-        // Use FontIcon for the add icon
         FontIcon addIcon = FontIcon.of(FontAwesomeSolid.PLUS, 36);
         addIcon.setOpacity(0.6);
         addIcon.getStyleClass().add("placeholder-icon");
@@ -287,7 +403,6 @@ public class LibraryController implements Initializable {
             return;
         }
 
-        // Launch in background thread
         Task<Boolean> launchTask = new Task<>() {
             @Override
             protected Boolean call() throws Exception {
@@ -335,7 +450,6 @@ public class LibraryController implements Initializable {
             dialogStage.setScene(scene);
             dialogController.setDialogStage(dialogStage);
             dialogController.setOnGameAdded(game -> {
-                // Save to database
                 gameService.saveGame(game);
                 loadGamesFromDatabase();
             });

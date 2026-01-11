@@ -21,7 +21,6 @@ public class MainController implements Initializable {
     @FXML private BorderPane rootPane;
     @FXML private VBox sidebar;
     @FXML private Button navLibrary;
-    @FXML private Button navScan;
     @FXML private Button navFavorites;
     @FXML private Button navSettings;
 
@@ -58,11 +57,6 @@ public class MainController implements Initializable {
         }
     }
 
-    @FXML
-    private void onNavScan() {
-        setActiveNav(navScan);
-        loadView("/com/nexus/views/ScanView.fxml");
-    }
 
     @FXML
     private void onNavFavorites() {

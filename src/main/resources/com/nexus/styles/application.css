@@ -252,6 +252,25 @@
     -fx-border-width: 1;
 }
 
+/* Subtle scan status indicator (non-blocking) */
+.scan-status-label {
+    -fx-text-fill: #9ca3af;
+    -fx-font-size: 12px;
+    -fx-font-style: italic;
+}
+
+#scanStatusContainer {
+    -fx-padding: 0 0 0 8;
+}
+
+#scanProgressIndicator {
+    -fx-progress-color: #4f46e5;
+}
+
+#scanProgressIndicator .indicator {
+    -fx-background-color: transparent;
+}
+
 /* ============================================
    SEARCH FIELD STYLES
    ============================================ */

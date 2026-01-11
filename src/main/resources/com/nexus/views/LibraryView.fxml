@@ -18,10 +18,16 @@
             <HBox alignment="CENTER_LEFT" spacing="16" HBox.hgrow="ALWAYS">
                 <FontIcon iconLiteral="mdi2g-gamepad-variant" iconSize="20" styleClass="view-header-icon"/>
                 <Label text="Library" styleClass="view-title"/>
-                <Label fx:id="gameCountLabel" text="12 GAMES" styleClass="game-count-badge"/>
+                <Label fx:id="gameCountLabel" text="0 GAMES" styleClass="game-count-badge"/>
+
+                <!-- Subtle scan status indicator (non-blocking) -->
+                <HBox fx:id="scanStatusContainer" alignment="CENTER_LEFT" spacing="8" visible="false" managed="false">
+                    <ProgressIndicator fx:id="scanProgressIndicator" prefWidth="16" prefHeight="16"/>
+                    <Label fx:id="scanStatusLabel" text="Checking for new games..." styleClass="scan-status-label"/>
+                </HBox>
             </HBox>
 
-            <HBox alignment="CENTER_RIGHT" spacing="16">
+            <HBox alignment="CENTER_RIGHT" spacing="12">
                 <!-- Search Field -->
                 <HBox styleClass="search-container" alignment="CENTER_LEFT">
                     <FontIcon iconLiteral="fas-search" iconSize="16" styleClass="search-icon"/>
@@ -30,13 +36,23 @@
                                styleClass="search-field"/>
                 </HBox>
 
+                <!-- Scan Button (toggles between Scan/Cancel) -->
+                <Button fx:id="scanButton"
+                        text="Scan"
+                        styleClass="secondary-button"
+                        onAction="#onScanButtonClick">
+                    <graphic>
+                        <FontIcon fx:id="scanButtonIcon" iconLiteral="fas-sync-alt" iconSize="14" styleClass="button-icon"/>
+                    </graphic>
+                </Button>
+
                 <!-- Add Game Button -->
                 <Button fx:id="addGameButton"
                         text="Add Game"
                         styleClass="primary-button"
                         onAction="#openAddGameDialog">
                     <graphic>
-                        <FontIcon iconLiteral="fas-plus" iconSize="16" styleClass="button-icon"/>
+                        <FontIcon iconLiteral="fas-plus" iconSize="14" styleClass="button-icon"/>
                     </graphic>
                 </Button>
             </HBox>
@@ -54,13 +70,6 @@
                 </FlowPane>
             </VBox>
         </ScrollPane>
-    </VBox>
-
-    <!-- Loading Overlay -->
-    <VBox fx:id="loadingOverlay" alignment="CENTER" spacing="16" visible="false" managed="false"
-          styleClass="loading-overlay">
-        <ProgressIndicator fx:id="loadingIndicator" styleClass="loading-indicator"/>
-        <Label fx:id="loadingLabel" text="Scanning for games..." styleClass="loading-text"/>
     </VBox>
 
 </StackPane>
