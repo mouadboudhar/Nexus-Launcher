@@ -13,6 +13,7 @@ module com.nexus.launcher {
     requires org.kordamp.ikonli.core;
     requires com.sun.jna;
     requires com.sun.jna.platform;
+    requires org.kordamp.ikonli.coreui;
 
     // Model package - open to Hibernate for entity mapping
     opens com.nexus.model to org.hibernate.orm.core, javafx.fxml;

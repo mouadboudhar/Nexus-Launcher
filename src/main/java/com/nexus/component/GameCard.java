@@ -15,6 +15,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeBrands;
+import org.kordamp.ikonli.coreui.CoreUiBrands;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
@@ -113,7 +114,7 @@ public class GameCard extends StackPane {
         if (platformIcon != null) {
             switch (game.getPlatform()) {
                 case STEAM -> platformIcon.setIconCode(FontAwesomeBrands.STEAM);
-                case EPIC -> platformIcon.setIconCode(MaterialDesignG.GAMEPAD_SQUARE);
+                case EPIC -> platformIcon.setIconCode(CoreUiBrands.EPIC_GAMES);
                 default -> platformIcon.setIconCode(MaterialDesignF.FOLDER);
             }
             platformIcon.setIconSize(18);

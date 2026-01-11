@@ -97,6 +97,7 @@
                 <VBox alignment="TOP_RIGHT" spacing="12">
                     <padding><Insets top="16"/></padding>
                     <HBox spacing="12" alignment="CENTER_RIGHT">
+                        <!--Back button-->
                         <Button fx:id="backButton"
                                 styleClass="back-button-pill"
                                 onAction="#onBackClick">
@@ -107,6 +108,7 @@
                                 </HBox>
                             </graphic>
                         </Button>
+                        <!--Favorite button-->
                         <Button fx:id="favoriteButton"
                                 styleClass="icon-button-circle"
                                 onAction="#onFavoriteClick">

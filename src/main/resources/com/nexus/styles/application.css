@@ -778,7 +778,7 @@
     -fx-font-weight: 500;
 }
 
-.status-badge-pill .font-icon {
+.status-badge-pill .ikonli-font-icon {
     -fx-icon-color: #4ade80;
 }
 
@@ -786,7 +786,7 @@
     -fx-text-fill: #4ade80;
 }
 
-.status-badge-pill.status-ready .font-icon {
+.status-badge-pill.status-ready .ikonli-font-icon {
     -fx-icon-color: #4ade80;
 }
 
@@ -794,7 +794,7 @@
     -fx-text-fill: #f87171;
 }
 
-.status-badge-pill.status-missing .font-icon {
+.status-badge-pill.status-missing .ikonli-font-icon {
     -fx-icon-color: #f87171;
 }
 
@@ -890,7 +890,7 @@
     -fx-background-color: rgba(75, 85, 99, 0.8);
 }
 
-.back-button-pill .font-icon {
+.back-button-pill .ikonli-font-icon {
     -fx-icon-color: #9ca3af;
 }
 
@@ -900,7 +900,7 @@
     -fx-font-weight: 500;
 }
 
-.back-button-pill:hover .font-icon,
+.back-button-pill:hover .ikonli-font-icon,
 .back-button-pill:hover .back-button-text {
     -fx-icon-color: white;
     -fx-text-fill: white;
@@ -1073,7 +1073,7 @@
     -fx-font-size: 13px;
 }
 
-.settings-context-menu .menu-item .font-icon {
+.settings-context-menu .menu-item .ikonli-font-icon {
     -fx-icon-color: #9ca3af;
 }
 
@@ -1081,7 +1081,7 @@
     -fx-text-fill: #f87171;
 }
 
-.settings-context-menu .danger-menu-item .font-icon {
+.settings-context-menu .danger-menu-item .ikonli-font-icon {
     -fx-icon-color: #f87171;
 }
 
