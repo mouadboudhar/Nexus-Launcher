@@ -2,19 +2,23 @@ package com.nexus.controller;
 
 import com.nexus.service.GameService;
 import com.nexus.model.AppSettings;
+import com.nexus.model.IgnoredGame;
 import com.nexus.repository.SettingsRepository;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.File;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 /**
@@ -27,6 +31,11 @@ public class SettingsController implements Initializable {
     @FXML private HBox darkModeToggle;
     @FXML private Button clearLibraryButton;
     @FXML private Label dbPathLabel;
+
+    // Hidden Games UI
+    @FXML private VBox hiddenGamesContainer;
+    @FXML private VBox hiddenGamesEmptyState;
+    @FXML private ListView<IgnoredGame> hiddenGamesList;
 
     private final SettingsRepository settingsRepository = new SettingsRepository();
     private final GameService gameService = GameService.getInstance();
@@ -45,6 +54,10 @@ public class SettingsController implements Initializable {
             File dbFile = new File("nexus.db");
             dbPathLabel.setText(dbFile.getAbsolutePath());
         }
+
+        // Setup hidden games list
+        setupHiddenGamesList();
+        loadHiddenGames();
     }
 
     private void loadSettings() {
@@ -177,6 +190,155 @@ public class SettingsController implements Initializable {
                 });
 
                 Thread thread = new Thread(clearTask);
+                thread.setDaemon(true);
+                thread.start();
+            }
+        });
+    }
+
+    /**
+     * Sets up the hidden games ListView with custom cell factory.
+     */
+    private void setupHiddenGamesList() {
+        if (hiddenGamesList == null) return;
+
+        hiddenGamesList.setCellFactory(listView -> new ListCell<>() {
+            private final HBox container = new HBox(12);
+            private final VBox textContainer = new VBox(2);
+            private final Label titleLabel = new Label();
+            private final Label pathLabel = new Label();
+            private final Button restoreButton = new Button("Restore");
+            private final FontIcon gameIcon = new FontIcon("fas-gamepad");
+
+            {
+                // Setup styles
+                container.setAlignment(Pos.CENTER_LEFT);
+                container.setPadding(new Insets(8, 12, 8, 12));
+                container.getStyleClass().add("hidden-game-item");
+
+                gameIcon.setIconSize(18);
+                gameIcon.getStyleClass().add("hidden-game-icon");
+
+                titleLabel.getStyleClass().add("hidden-game-title");
+                pathLabel.getStyleClass().add("hidden-game-path");
+
+                textContainer.getChildren().addAll(titleLabel, pathLabel);
+                HBox.setHgrow(textContainer, Priority.ALWAYS);
+
+                restoreButton.getStyleClass().add("secondary-button");
+                restoreButton.setOnAction(e -> {
+                    IgnoredGame game = getItem();
+                    if (game != null) {
+                        restoreHiddenGame(game);
+                    }
+                });
+
+                container.getChildren().addAll(gameIcon, textContainer, restoreButton);
+            }
+
+            @Override
+            protected void updateItem(IgnoredGame item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    titleLabel.setText(item.getTitle());
+                    pathLabel.setText(item.getInstallPath() != null ? item.getInstallPath() : "Unknown path");
+                    setGraphic(container);
+                }
+            }
+        });
+    }
+
+    /**
+     * Loads hidden games from the database.
+     */
+    private void loadHiddenGames() {
+        Task<List<IgnoredGame>> loadTask = new Task<>() {
+            @Override
+            protected List<IgnoredGame> call() {
+                return gameService.getAllIgnoredGames();
+            }
+        };
+
+        loadTask.setOnSucceeded(e -> {
+            List<IgnoredGame> ignoredGames = loadTask.getValue();
+            Platform.runLater(() -> updateHiddenGamesUI(ignoredGames));
+        });
+
+        loadTask.setOnFailed(e -> {
+            System.err.println("[SettingsController] Failed to load hidden games: " + loadTask.getException());
+            Platform.runLater(() -> updateHiddenGamesUI(List.of()));
+        });
+
+        Thread thread = new Thread(loadTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    /**
+     * Updates the hidden games UI based on the list of ignored games.
+     */
+    private void updateHiddenGamesUI(List<IgnoredGame> ignoredGames) {
+        if (hiddenGamesEmptyState == null || hiddenGamesList == null) return;
+
+        if (ignoredGames == null || ignoredGames.isEmpty()) {
+            // Show empty state
+            hiddenGamesEmptyState.setVisible(true);
+            hiddenGamesEmptyState.setManaged(true);
+            hiddenGamesList.setVisible(false);
+            hiddenGamesList.setManaged(false);
+        } else {
+            // Show list
+            hiddenGamesEmptyState.setVisible(false);
+            hiddenGamesEmptyState.setManaged(false);
+            hiddenGamesList.setVisible(true);
+            hiddenGamesList.setManaged(true);
+            hiddenGamesList.getItems().setAll(ignoredGames);
+        }
+    }
+
+    /**
+     * Restores a hidden game (removes from ignored list).
+     */
+    private void restoreHiddenGame(IgnoredGame ignoredGame) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Restore Game");
+        alert.setHeaderText("Restore " + ignoredGame.getTitle() + "?");
+        alert.setContentText("This game will appear in your library on the next scan.");
+
+        // Style the dialog
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.getStylesheets().add(getClass().getResource("/com/nexus/styles/application.css").toExternalForm());
+        dialogPane.getStyleClass().add("custom-dialog");
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                Task<Void> restoreTask = new Task<>() {
+                    @Override
+                    protected Void call() {
+                        gameService.restoreIgnoredGame(ignoredGame);
+                        return null;
+                    }
+                };
+
+                restoreTask.setOnSucceeded(e -> Platform.runLater(() -> {
+                    System.out.println("[SettingsController] Restored game: " + ignoredGame.getTitle());
+                    loadHiddenGames(); // Refresh the list
+                }));
+
+                restoreTask.setOnFailed(e -> {
+                    System.err.println("[SettingsController] Failed to restore game: " + restoreTask.getException());
+                    Platform.runLater(() -> {
+                        Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                        errorAlert.setTitle("Error");
+                        errorAlert.setHeaderText("Failed to restore game");
+                        errorAlert.setContentText("An error occurred while restoring the game.");
+                        errorAlert.showAndWait();
+                    });
+                });
+
+                Thread thread = new Thread(restoreTask);
                 thread.setDaemon(true);
                 thread.start();
             }

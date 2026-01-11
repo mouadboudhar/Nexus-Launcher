@@ -149,7 +149,7 @@ public class GameDetailsController implements Initializable {
 //    }
 
     /**
-     * Creates the settings context menu with Edit and Delete options.
+     * Creates the settings context menu with Edit and Ignore options.
      */
     private void createSettingsContextMenu() {
         settingsContextMenu = new ContextMenu();
@@ -160,13 +160,13 @@ public class GameDetailsController implements Initializable {
         editItem.setGraphic(new FontIcon("fas-edit"));
         editItem.setOnAction(e -> openEditDialog());
 
-        // Delete Game menu item
-        MenuItem deleteItem = new MenuItem("Delete Game");
-        deleteItem.setGraphic(new FontIcon("fas-trash-alt"));
-        deleteItem.getStyleClass().add("danger-menu-item");
-        deleteItem.setOnAction(e -> confirmDeleteGame());
+        // Ignore Game menu item
+        MenuItem ignoreItem = new MenuItem("Ignore Game");
+        ignoreItem.setGraphic(new FontIcon("fas-eye-slash"));
+        ignoreItem.getStyleClass().add("danger-menu-item");
+        ignoreItem.setOnAction(e -> confirmIgnoreGame());
 
-        settingsContextMenu.getItems().addAll(editItem, new SeparatorMenuItem(), deleteItem);
+        settingsContextMenu.getItems().addAll(editItem, new SeparatorMenuItem(), ignoreItem);
     }
 
     public void setMainController(MainController mainController) {
@@ -614,6 +614,57 @@ public class GameDetailsController implements Initializable {
         }));
 
         Thread thread = new Thread(deleteTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    /**
+     * Shows a confirmation dialog before ignoring the game.
+     */
+    private void confirmIgnoreGame() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Ignore Game");
+        alert.setHeaderText("Ignore " + currentGame.getTitle() + "?");
+        alert.setContentText("Are you sure? This will hide the game from your library and future scans.\n\nYou can restore hidden games from Settings.");
+
+        // Style the dialog
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.getStylesheets().add(getClass().getResource("/com/nexus/styles/application.css").toExternalForm());
+        dialogPane.getStyleClass().add("custom-dialog");
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                ignoreGame();
+            }
+        });
+    }
+
+    /**
+     * Ignores the current game - removes from library and prevents future detection.
+     */
+    private void ignoreGame() {
+        Task<Void> ignoreTask = new Task<>() {
+            @Override
+            protected Void call() {
+                gameService.ignoreGame(currentGame);
+                return null;
+            }
+        };
+
+        ignoreTask.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (mainController != null) {
+                mainController.showToast("Game Hidden", currentGame.getTitle() + " has been hidden from your library.");
+                mainController.backToLibrary();
+            }
+        }));
+
+        ignoreTask.setOnFailed(e -> Platform.runLater(() -> {
+            if (mainController != null) {
+                mainController.showToast("Error", "Failed to ignore game.");
+            }
+        }));
+
+        Thread thread = new Thread(ignoreTask);
         thread.setDaemon(true);
         thread.start();
     }

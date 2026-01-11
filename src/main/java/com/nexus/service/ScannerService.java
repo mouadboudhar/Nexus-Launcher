@@ -4,6 +4,7 @@ import com.nexus.model.Game;
 import com.nexus.model.Game.Platform;
 import com.nexus.model.Game.Status;
 import com.nexus.repository.GameRepository;
+import com.nexus.repository.IgnoredGameRepository;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,7 @@ import java.util.regex.Pattern;
 public class ScannerService {
 
     private final GameRepository gameRepository;
+    private final IgnoredGameRepository ignoredGameRepository;
     private final MetadataService metadataService;
 
     // ==================== KNOWN STANDALONE GAMES WHITELIST ====================
@@ -101,11 +103,13 @@ public class ScannerService {
 
     public ScannerService() {
         this.gameRepository = new GameRepository();
+        this.ignoredGameRepository = new IgnoredGameRepository();
         this.metadataService = new CombinedMetadataService();
     }
 
     public ScannerService(GameRepository gameRepository, MetadataService metadataService) {
         this.gameRepository = gameRepository;
+        this.ignoredGameRepository = new IgnoredGameRepository();
         this.metadataService = metadataService;
     }
 
@@ -122,26 +126,30 @@ public class ScannerService {
     public List<Game> scanAll() {
         System.out.println("[ScannerService] Starting full scan...");
 
+        // Get list of ignored game unique IDs
+        Set<String> ignoredIds = new HashSet<>(ignoredGameRepository.findAllUniqueIds());
+        System.out.println("[ScannerService] Found " + ignoredIds.size() + " ignored games to skip");
+
         Map<String, Game> gameByUniqueId = new LinkedHashMap<>();
         Set<String> seenNormalizedTitles = new HashSet<>();
 
         // 1. Scan Steam
-        addGames(gameByUniqueId, seenNormalizedTitles, scanSteam(), "Steam");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanSteam(), "Steam", ignoredIds);
 
         // 2. Scan Epic Games
-        addGames(gameByUniqueId, seenNormalizedTitles, scanEpic(), "Epic");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanEpic(), "Epic", ignoredIds);
 
         // 3. Scan Riot Games (League, VALORANT, etc.)
-        addGames(gameByUniqueId, seenNormalizedTitles, scanRiotGames(), "Riot");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanRiotGames(), "Riot", ignoredIds);
 
         // 4. Scan Battle.net (WoW, Diablo, Overwatch, etc.)
-        addGames(gameByUniqueId, seenNormalizedTitles, scanBattleNet(), "Battle.net");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanBattleNet(), "Battle.net", ignoredIds);
 
         // 5. Scan EA App / Origin
-        addGames(gameByUniqueId, seenNormalizedTitles, scanEAApp(), "EA");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanEAApp(), "EA", ignoredIds);
 
         // 6. Scan known standalone games from registry
-        addGames(gameByUniqueId, seenNormalizedTitles, scanKnownStandalones(), "Standalone");
+        addGames(gameByUniqueId, seenNormalizedTitles, scanKnownStandalones(), "Standalone", ignoredIds);
 
         List<Game> allGames = new ArrayList<>(gameByUniqueId.values());
         List<Game> mergedGames = mergeWithDatabase(allGames);
@@ -150,13 +158,21 @@ public class ScannerService {
         return mergedGames;
     }
 
-    private void addGames(Map<String, Game> gameMap, Set<String> seenTitles, List<Game> games, String source) {
+    private void addGames(Map<String, Game> gameMap, Set<String> seenTitles, List<Game> games, String source, Set<String> ignoredIds) {
         System.out.println("[ScannerService] Found " + games.size() + " " + source + " games");
         for (Game g : games) {
             String normalizedTitle = normalizeTitle(g.getTitle());
-            if (!seenTitles.contains(normalizedTitle) && g.getUniqueId() != null) {
+            String uniqueId = g.getUniqueId();
+
+            // Skip if game is ignored
+            if (uniqueId != null && ignoredIds.contains(uniqueId)) {
+                System.out.println("[ScannerService] Skipping ignored game: " + g.getTitle());
+                continue;
+            }
+
+            if (!seenTitles.contains(normalizedTitle) && uniqueId != null) {
                 seenTitles.add(normalizedTitle);
-                gameMap.put(g.getUniqueId(), g);
+                gameMap.put(uniqueId, g);
             }
         }
     }

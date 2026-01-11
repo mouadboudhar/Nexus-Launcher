@@ -1,7 +1,9 @@
 package com.nexus.service;
 
 import com.nexus.model.Game;
+import com.nexus.model.IgnoredGame;
 import com.nexus.repository.GameRepository;
+import com.nexus.repository.IgnoredGameRepository;
 
 import java.util.*;
 
@@ -13,10 +15,12 @@ public class GameService {
 
     private static GameService instance;
     private final GameRepository gameRepository;
+    private final IgnoredGameRepository ignoredGameRepository;
     private final MetadataService metadataService;
 
     private GameService() {
         this.gameRepository = new GameRepository();
+        this.ignoredGameRepository = new IgnoredGameRepository();
         // Use dynamic API-based metadata service
         this.metadataService = new CombinedMetadataService();
     }
@@ -195,6 +199,72 @@ public class GameService {
                 gameRepository.delete(game.getId());
             }
         }
+    }
+
+    /**
+     * Ignores a game - adds it to the ignored list and removes from the library.
+     * The game will not appear in future scans.
+     *
+     * @param game The game to ignore
+     */
+    public void ignoreGame(Game game) {
+        if (game == null) return;
+
+        // Create an IgnoredGame record
+        IgnoredGame ignoredGame = new IgnoredGame(
+            game.getTitle(),
+            game.getInstallPath(),
+            game.getUniqueId()
+        );
+
+        // Save to ignored games table
+        try {
+            ignoredGameRepository.save(ignoredGame);
+            System.out.println("[GameService] Game ignored: " + game.getTitle());
+        } catch (Exception e) {
+            System.err.println("[GameService] Failed to save ignored game: " + e.getMessage());
+            // If it already exists, that's fine - continue with deletion
+        }
+
+        // Delete the game from the main games table
+        if (game.getId() != null) {
+            gameRepository.delete(game.getId());
+            System.out.println("[GameService] Game removed from library: " + game.getTitle());
+        }
+    }
+
+    /**
+     * Restores a previously ignored game.
+     * The game will reappear on the next scan.
+     *
+     * @param ignoredGame The ignored game to restore
+     */
+    public void restoreIgnoredGame(IgnoredGame ignoredGame) {
+        if (ignoredGame == null || ignoredGame.getId() == null) return;
+
+        ignoredGameRepository.delete(ignoredGame.getId());
+        System.out.println("[GameService] Game restored (will appear on next scan): " + ignoredGame.getTitle());
+    }
+
+    /**
+     * Gets all ignored games.
+     */
+    public List<IgnoredGame> getAllIgnoredGames() {
+        return ignoredGameRepository.findAll();
+    }
+
+    /**
+     * Checks if a game is ignored by its unique ID.
+     */
+    public boolean isGameIgnored(String uniqueId) {
+        return ignoredGameRepository.isIgnored(uniqueId);
+    }
+
+    /**
+     * Gets all ignored game unique IDs.
+     */
+    public List<String> getIgnoredGameIds() {
+        return ignoredGameRepository.findAllUniqueIds();
     }
 }
 

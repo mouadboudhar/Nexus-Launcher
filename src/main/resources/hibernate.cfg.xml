@@ -25,6 +25,7 @@
         <!-- Entity Mappings -->
         <mapping class="com.nexus.model.Game"/>
         <mapping class="com.nexus.model.AppSettings"/>
+        <mapping class="com.nexus.model.IgnoredGame"/>
     </session-factory>
 </hibernate-configuration>
 

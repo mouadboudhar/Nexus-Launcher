@@ -2,6 +2,7 @@ package com.nexus.util;
 
 import com.nexus.model.Game;
 import com.nexus.model.AppSettings;
+import com.nexus.model.IgnoredGame;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -23,6 +24,7 @@ public class HibernateUtil {
             // Explicitly add annotated classes
             configuration.addAnnotatedClass(Game.class);
             configuration.addAnnotatedClass(AppSettings.class);
+            configuration.addAnnotatedClass(IgnoredGame.class);
 
             sessionFactory = configuration.buildSessionFactory();
             System.out.println("[HibernateUtil] SessionFactory created successfully");

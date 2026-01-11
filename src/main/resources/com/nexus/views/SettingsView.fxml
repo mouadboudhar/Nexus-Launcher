@@ -92,6 +92,30 @@
                 </HBox>
             </VBox>
 
+            <!-- Hidden Games Section -->
+            <VBox spacing="16">
+                <Label text="Hidden Games" styleClass="settings-section-title"/>
+                <Separator styleClass="section-separator"/>
+
+                <VBox spacing="8">
+                    <Label text="Games you've chosen to hide from your library. Restore them to make them appear in future scans." styleClass="setting-description"/>
+
+                    <!-- Hidden Games List -->
+                    <VBox fx:id="hiddenGamesContainer" styleClass="hidden-games-container" spacing="8" minHeight="100">
+                        <padding><Insets top="8" right="0" bottom="8" left="0"/></padding>
+
+                        <!-- Empty State -->
+                        <VBox fx:id="hiddenGamesEmptyState" styleClass="empty-state-small" alignment="CENTER" spacing="8" visible="true">
+                            <FontIcon iconLiteral="fas-eye" iconSize="24" styleClass="empty-state-icon"/>
+                            <Label text="No hidden games" styleClass="empty-state-text"/>
+                        </VBox>
+
+                        <!-- List of hidden games -->
+                        <ListView fx:id="hiddenGamesList" styleClass="hidden-games-list" visible="false" managed="false" prefHeight="200"/>
+                    </VBox>
+                </VBox>
+            </VBox>
+
             <!-- About Section -->
             <VBox spacing="16">
                 <Label text="About" styleClass="settings-section-title"/>

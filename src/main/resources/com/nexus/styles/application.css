@@ -1536,3 +1536,77 @@
     -fx-font-size: 13px;
 }
 
+/* ============================================
+   HIDDEN GAMES SECTION STYLING
+   ============================================ */
+
+.hidden-games-container {
+    -fx-background-color: #111827;
+    -fx-border-color: #374151;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+
+.hidden-games-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.hidden-games-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.hidden-games-list .list-cell:filled {
+    -fx-background-color: transparent;
+}
+
+.hidden-games-list .list-cell:filled:hover {
+    -fx-background-color: transparent;
+}
+
+.hidden-games-list .list-cell:filled:selected {
+    -fx-background-color: transparent;
+}
+
+.hidden-game-item {
+    -fx-background-color: #1f2937;
+    -fx-background-radius: 8;
+    -fx-border-color: #374151;
+    -fx-border-radius: 8;
+}
+
+.hidden-game-item:hover {
+    -fx-background-color: #374151;
+}
+
+.hidden-game-icon {
+    -fx-icon-color: #6b7280;
+}
+
+.hidden-game-title {
+    -fx-text-fill: #e5e7eb;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.hidden-game-path {
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 12px;
+}
+
+.empty-state-small {
+    -fx-padding: 24 16;
+}
+
+.empty-state-small .empty-state-icon {
+    -fx-icon-color: #4b5563;
+}
+
+.empty-state-small .empty-state-text {
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 14px;
+}
+
